@@ -34,30 +34,37 @@ function App() {
 // src/App.tsx
 
 import VentaForm from './components/VentaForm';
+import VentaList from './components/VentaList';
 
 // Importa el CSS que viene por defecto o tu propio estilo
 import './App.css';
 
+
 function App() {
   return (
-    <div className="container mx-auto p-4">
-      <header className="text-center mb-6">
-        <h1 className="text-3xl font-bold">SIGVeCa - Gestión de Ventas de Cacao</h1>
-        <p className="text-lg">Versión 1.0: Registro Básico de Ventas</p>
+    // Asumiendo que has agregado utilidades como Tailwind CSS o algún estilo simple
+    <div className="container mx-auto p-4 max-w-4xl"> 
+      <header className="text-center mb-8">
+        <h1 className="text-4xl font-extrabold text-gray-800">SIGVeCa - Gestión de Ventas de Cacao</h1>
+        <p className="text-xl text-gray-600">Versión 1.1: Registro y Visualización</p>
       </header>
-      <div className="max-w-md mx-auto">
+      
+      {/* Sección del Formulario */}
+      <div className="max-w-md mx-auto mb-10">
         <VentaForm />
       </div>
-
-      <hr className="my-8" />
-
+      
+      <hr className="my-10" />
+      
+      {/* Sección de la Lista de Ventas */}
       <section>
-        <h2 className="text-2xl font-semibold mb-4">📚 Ventas Registradas (Próxima Versión)</h2>
-        <p className="text-gray-600">Aquí se mostrará la lista de ventas cargadas desde Firebase y podrás ver el estado (Pendiente/Conciliado).</p>
+        <h2 className="text-3xl font-bold mb-6 text-gray-700">📚 Historial de Ventas</h2>
+        <VentaList /> {/* ¡Componente de lista de ventas! */}
       </section>
     </div>
   );
 }
 
 export default App;
+
 
