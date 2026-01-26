@@ -12,8 +12,10 @@ import { GoogleGenAI } from '@google/genai';
 // Usa la variable de entorno expuesta por Vite (VITE_...)
 // src/components/BatchUpload.tsx (Modificación TEMPORAL)
 
+// Inicializar el cliente de Gemini usando la variable de entorno
+//const ai = new GoogleGenAI(import.meta.env.VITE_GEMINI_API_KEY);
 // Reemplaza "TU_CLAVE_API_REAL_AQUI" con tu clave.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY || "AIzaSyDQvJOS3xQr1i6D-GoPQRfuXHcBnxKs34k" });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY || "AIzaSyA6gy11NV3aQikx8-6wfY7jPtBD4jcRudg" });
 // ...
 
 // Define la estructura de datos que esperamos de Gemini para cada fila
