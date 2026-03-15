@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { db } from '../lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 import type { Venta } from '../types/Venta';
 
 // 👈 Importación de la librería de Google
@@ -12,10 +12,13 @@ import { GoogleGenAI } from '@google/genai';
 // Usa la variable de entorno expuesta por Vite (VITE_...)
 // src/components/BatchUpload.tsx (Modificación TEMPORAL)
 
+// 2. Definimos los precios fijos (puedes ajustarlos aquí si cambian)
+const PRECIOS = { cono: 1.9, tableta: 1.5, dulce: 1.0 };
+
 // Inicializar el cliente de Gemini usando la variable de entorno
 //const ai = new GoogleGenAI(import.meta.env.VITE_GEMINI_API_KEY);
 // Reemplaza "TU_CLAVE_API_REAL_AQUI" con tu clave.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY || "AIzaSyA6gy11NV3aQikx8-6wfY7jPtBD4jcRudg" });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY || "AIzaSyAq7iGmK_HbdBLpSrMtkdko6dOZDY_yA_4" });
 // ...
 
 // Define la estructura de datos que esperamos de Gemini para cada fila
@@ -70,6 +73,11 @@ export const BatchUpload: React.FC = () => {
         setMessage('🤖 Procesando imagen con Gemini AI. Esto puede tardar unos segundos...');
 
         try {
+            // --- MODIFICACIÓN: OBTENER TASA ---
+            // Buscamos la tasa BCV guardada en tu colección 'config'
+            const rateDocSnap = await getDoc(doc(db, 'config', 'tasas'));
+            const tasaActual = rateDocSnap.exists() ? rateDocSnap.data().bcv : 0;
+
             // 1. Convertir la imagen a Base64
             const imagePart = await fileToGenerativePart(uploadFile);
 
@@ -95,6 +103,8 @@ export const BatchUpload: React.FC = () => {
                 ],
             });
 
+
+
             // 4. Procesar la respuesta
             // response.text puede ser undefined; manejamos el caso y validamos antes de parsear
             let responseText = '';
@@ -117,16 +127,31 @@ export const BatchUpload: React.FC = () => {
             const parsedData: ParsedRecord[] = JSON.parse(responseText);
 
             // 5. Guardar los registros en Firebase
+            // --- MODIFICACIÓN C: CÁLCULOS ANTES DE GUARDAR ---
             let savedRecords = 0;
             for (const record of parsedData) {
-                const newVenta: Omit<Venta, 'id'> = {
+                const cono = Number(record.cacaoCono) || 0;
+                const tab = Number(record.cacaoTableta) || 0;
+                const dulce = Number(record.cacaoDulce) || 0;
+
+                // Calculamos los totales en dólares
+                const totalUSD = (cono * PRECIOS.cono) + (tab * PRECIOS.tableta) + (dulce * PRECIOS.dulce);
+                // Convertimos a bolívares usando la tasa que buscamos al principio
+                const totalBS = totalUSD * tasaActual;
+
+                const newVenta: any = {
                     cliente: record.cliente,
-                    cacaoCono: Number(record.cacaoCono) || 0,
-                    cacaoTableta: Number(record.cacaoTableta) || 0,
-                    cacaoDulce: Number(record.cacaoDulce) || 0,
-                    estado: 'Pendiente', // Por defecto, es Pendiente
-                    fecha: new Date(), 
+                    cacaoCono: cono,
+                    cacaoTableta: tab,
+                    cacaoDulce: dulce,
+                    estado: 'Pendiente',
+                    fecha: new Date(),
+                    // Guardamos el "Snapshot" financiero para que el registro sea completo
+                    tasaBCVSnapshot: tasaActual,
+                    totalUSD: totalUSD,
+                    totalBS: totalBS
                 };
+
                 await addDoc(collection(db, 'ventas'), newVenta);
                 savedRecords++;
             }
@@ -179,7 +204,6 @@ export const BatchUpload: React.FC = () => {
                 </p>
             )}
 
-            {/* Removemos la vista previa simulada ya que ahora es real */}
         </div>
     );
 };

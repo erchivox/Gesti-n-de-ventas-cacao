@@ -5,6 +5,7 @@ import { DashboardMetrics } from './components/DashboardMetrics';
 import { BatchUpload } from './components/BatchUpload'; // ¡NUEVO IMPORT!
 import VentaForm from './components/VentaForm'; // Mantén el formulario de momento
 import './App.css';
+import  RateManager  from './components/RateManager';
 
 function App() {
   return (
@@ -13,7 +14,8 @@ function App() {
         <h1 className="text-4xl font-extrabold text-gray-800">Sistema de Gestión de Ventas y Productos de Cacao Artesanal</h1>
         <p className="text-xl text-gray-600">Versión 3.0: Digitalización y Procesamiento en Lote</p>
       </header>
-      
+      {/* 🚀GESTOR DE TASA BCV */}
+      <RateManager />
       {/*  Sección de Métricas (Dashboard) */}
       <section className="mb-8">
         <h2 className="text-3xl font-bold mb-4 text-gray-700 text-left"> Resumen de Flujo</h2>

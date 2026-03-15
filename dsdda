@@ -1,0 +1,29 @@
+[33mcommit 94e878dd01e27034f03132f2eae72a5866233263[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: Trino <trinitocarrizo365@gmail.com>
+Date:   Mon Jan 26 18:12:29 2026 -0400
+
+    mensaje
+
+[33mcommit 5aea3506120eaf5057744169b83f32ad4d4d5a46[m[33m ([m[1;33mtag: [m[1;33mv3.0[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Trino <trinitocarrizo365@gmail.com>
+Date:   Sat Dec 6 22:00:46 2025 -0400
+
+    Implementación de la nueva version 3.0 deteccion de tablas en imagenes
+
+[33mcommit b397a8196666aa69441c25bfb0166c1f091606a6[m[33m ([m[1;33mtag: [m[1;33mv2.0[m[33m)[m
+Author: Trino <trinitocarrizo365@gmail.com>
+Date:   Sat Dec 6 19:28:10 2025 -0400
+
+    Implementación de metricas y boton de borrar
+
+[33mcommit 695dfef6bc9c3633413dd0a91881eda145083395[m[33m ([m[1;33mtag: [m[1;33mv1.2[m[33m)[m
+Author: Trino <trinitocarrizo365@gmail.com>
+Date:   Sat Dec 6 10:54:06 2025 -0400
+
+    cambios de la version 1.2
+
+[33mcommit 6320d700f8aa92b633333a86bb9555d489734f93[m
+Author: Trino <trinitocarrizo365@gmail.com>
+Date:   Fri Dec 5 16:36:06 2025 -0400
+
+    feat: Inicializar proyecto SIGVeCa y configurar .gitignore
