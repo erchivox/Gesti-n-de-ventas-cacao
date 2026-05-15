@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { db } from '../lib/firebase';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
-import type { Venta } from '../types/Venta';
+//import type { Venta } from '../types/Venta';
 
 // 👈 Importación de la librería de Google
 import { GoogleGenAI } from '@google/genai';
