@@ -18,7 +18,8 @@ const PRECIOS = { cono: 1.9, tableta: 1.5, dulce: 1.0 };
 // Inicializar el cliente de Gemini usando la variable de entorno
 //const ai = new GoogleGenAI(import.meta.env.VITE_GEMINI_API_KEY);
 // Reemplaza "TU_CLAVE_API_REAL_AQUI" con tu clave.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY });
+//const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY });
+const ai = new GoogleGenAI(import.meta.env.VITE_GOOGLE_API_KEY || "");
 // ...
 
 // Define la estructura de datos que esperamos de Gemini para cada fila
