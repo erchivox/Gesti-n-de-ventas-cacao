@@ -1,110 +1,147 @@
 // src/components/DashboardMetrics.tsx
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import type { Venta } from '../types/Venta';
 
-// Interfaz para almacenar los totales de las métricas
 interface Metrics {
   totalVentas: number;
   unidadesPendientes: number;
-  unidadesConciliadas: number;
+  unidadesPagadas: number;
+  totalUSDPendiente: number;
+  totalUSDPagado: number;
+  totalBSPendiente: number; // calculado en vivo
 }
 
 export const DashboardMetrics: React.FC = () => {
-  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [ventas, setVentas] = useState<any[]>([]);
+  const [tasaActual, setTasaActual] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  // ----------------------------------------------------
-  // 1. Suscripción a Firebase para obtener TODAS las ventas
-  // ----------------------------------------------------
+  // Tasa en tiempo real
   useEffect(() => {
-    // No necesitamos ordenar para las métricas, solo obtener todos los datos
-    const q = query(collection(db, 'ventas')); 
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const ventasData: Venta[] = [];
-      querySnapshot.forEach((doc: DocumentData) => {
-        const data = doc.data();
-
-        // Transformamos los datos (aseguramos el tipo number para las cantidades)
-        const venta: Venta = {
-          id: doc.id,
-          cliente: data.cliente,
-          cacaoCono: Number(data.cacaoCono) || 0, // Aseguramos que sea un número
-          cacaoTableta: Number(data.cacaoTableta) || 0,
-          cacaoDulce: Number(data.cacaoDulce) || 0,
-          estado: data.estado,
-          fecha: data.fecha.toDate(), 
-        };
-        ventasData.push(venta);
-      });
-      
-      setVentas(ventasData);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error al obtener las ventas: ", error);
-      setLoading(false);
+    const unsub = onSnapshot(doc(db, 'config', 'tasas'), (snap) => {
+      if (snap.exists()) setTasaActual(snap.data().bcv ?? 0);
     });
-
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
 
-  // ----------------------------------------------------
-  // 2. CÁLCULO DE MÉTRICAS (Usamos useMemo para optimizar)
-  // ----------------------------------------------------
+  // Ventas en tiempo real
+  useEffect(() => {
+    const q = query(collection(db, 'ventas'));
+    const unsub = onSnapshot(q, (snap) => {
+      const data: any[] = [];
+      snap.forEach((d: DocumentData) => {
+        const v = d.data();
+        data.push({
+          id: d.id,
+          cacaoCono: Number(v.cacaoCono) || 0,
+          cacaoTableta: Number(v.cacaoTableta) || 0,
+          cacaoDulce: Number(v.cacaoDulce) || 0,
+          estado: v.estado,
+          totalUSD: v.totalUSD ?? 0,
+        });
+      });
+      setVentas(data);
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
+  }, []);
+
   const metrics = useMemo<Metrics>(() => {
     let unidadesPendientes = 0;
-    let unidadesConciliadas = 0;
-    
-    ventas.forEach(venta => {
-      // Suma de todas las unidades de productos en esta venta
-      const totalUnidadesVenta = venta.cacaoCono + venta.cacaoTableta + venta.cacaoDulce;
+    let unidadesPagadas = 0;
+    let totalUSDPendiente = 0;
+    let totalUSDPagado = 0;
 
-      if (venta.estado === 'Pendiente') {
-        unidadesPendientes += totalUnidadesVenta;
-      } else if (venta.estado === 'Conciliado') {
-        unidadesConciliadas += totalUnidadesVenta;
+    ventas.forEach(v => {
+      const units = v.cacaoCono + v.cacaoTableta + v.cacaoDulce;
+      if (v.estado === 'Pendiente') {
+        unidadesPendientes += units;
+        totalUSDPendiente += v.totalUSD;
+      } else if (v.estado === 'Pagado') {
+        unidadesPagadas += units;
+        totalUSDPagado += v.totalUSD;
       }
     });
 
     return {
       totalVentas: ventas.length,
       unidadesPendientes,
-      unidadesConciliadas
+      unidadesPagadas,
+      totalUSDPendiente,
+      totalUSDPagado,
+      totalBSPendiente: totalUSDPendiente * tasaActual,
     };
-  }, [ventas]); // Recalcular solo cuando la lista de ventas cambie
+  }, [ventas, tasaActual]);
 
-  if (loading) {
-    return <p className="text-center text-blue-500">Cargando métricas...</p>;
-  }
+  if (loading) return (
+    <div className="flex justify-center py-8">
+      <p className="text-sm animate-pulse" style={{ color: '#60a5fa' }}>Cargando métricas...</p>
+    </div>
+  );
+
+  const cards = [
+    {
+      title: 'Total Registros',
+      value: metrics.totalVentas,
+      sub: 'ventas en el sistema',
+      emoji: '📦',
+      bg: '#1e293b',
+      accent: '#64748b',
+      valueColor: '#f1f5f9',
+      extra: null,
+    },
+    {
+      title: 'Pendientes de Pago',
+      value: metrics.unidadesPendientes,
+      sub: `$${metrics.totalUSDPendiente.toFixed(2)} USD por cobrar`,
+      emoji: '⏳',
+      bg: '#fffbeb',
+      accent: '#d97706',
+      valueColor: '#92400e',
+      extra: `Bs. ${metrics.totalBSPendiente.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (tasa viva)`,
+    },
+    {
+      title: 'Pagados',
+      value: metrics.unidadesPagadas,
+      sub: `$${metrics.totalUSDPagado.toFixed(2)} USD cobrados`,
+      emoji: '✅',
+      bg: '#f0fdf4',
+      accent: '#16a34a',
+      valueColor: '#14532d',
+      extra: null,
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-      
-      {/* Tarjeta 1: Total de Registros */}
-      <div className="p-4 bg-gray-100 rounded-lg shadow-md border-l-4 border-gray-500">
-        <h4 className="text-sm font-semibold text-gray-600">Total de Registros</h4>
-        <p className="text-3xl font-bold text-gray-900">{metrics.totalVentas}</p>
-        <span className="text-xs text-gray-500">Ventas totales en el sistema</span>
-      </div>
-      
-      {/* Tarjeta 2: Unidades Pendientes */}
-      <div className="p-4 bg-red-100 rounded-lg shadow-md border-l-4 border-red-500">
-        <h4 className="text-sm font-semibold text-red-700">Unidades Pendientes de Pago</h4>
-        <p className="text-3xl font-bold text-red-800">{metrics.unidadesPendientes}</p>
-        <span className="text-xs text-red-600">Unidades de producto por conciliar</span>
-      </div>
-      
-      {/* Tarjeta 3: Unidades Conciliadas */}
-      <div className="p-4 bg-green-100 rounded-lg shadow-md border-l-4 border-green-500">
-        <h4 className="text-sm font-semibold text-green-700">Unidades Conciliadas (Pagadas)</h4>
-        <p className="text-3xl font-bold text-green-800">{metrics.unidadesConciliadas}</p>
-        <span className="text-xs text-green-600">Unidades de producto ya pagadas</span>
-      </div>
-
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {cards.map(card => (
+        <div
+          key={card.title}
+          className="rounded-2xl p-4 shadow-sm flex items-center gap-4 sm:flex-col sm:items-start sm:gap-2"
+          style={{ backgroundColor: card.bg, borderLeft: `4px solid ${card.accent}` }}
+        >
+          <span className="text-3xl sm:text-2xl flex-shrink-0">{card.emoji}</span>
+          <div className="flex-1 sm:w-full">
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: card.accent }}>
+              {card.title}
+            </p>
+            <p className="text-3xl font-black leading-none mt-0.5" style={{ color: card.valueColor }}>
+              {card.value}
+            </p>
+            <p className="text-xs mt-1" style={{ color: card.accent, opacity: 0.85 }}>
+              {card.sub}
+            </p>
+            {card.extra && (
+              <p className="text-xs mt-0.5 font-bold" style={{ color: card.accent }}>
+                {card.extra}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

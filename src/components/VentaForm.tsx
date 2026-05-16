@@ -1,65 +1,62 @@
 // src/components/VentaForm.tsx
 import React, { useState } from 'react';
 import { db } from '../lib/firebase';
-import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 
-const PRECIOS_PRODUCTOS = {
-  cono: 1.9,
-  tableta: 1.5,
-  dulce: 1.0
-};
+const PRECIOS_PRODUCTOS = { cono: 1.9, tableta: 1.5, dulce: 1.0 };
+
+const PRODUCTOS = [
+  { key: 'cono',    label: 'Cacao Cono',    price: '1.90', color: '#7c3aed' },
+  { key: 'tableta', label: 'Cacao Tableta', price: '1.50', color: '#0891b2' },
+  { key: 'dulce',   label: 'Cacao Dulce',   price: '1.00', color: '#059669' },
+] as const;
+
+type ProductKey = 'cono' | 'tableta' | 'dulce';
 
 const VentaForm: React.FC = () => {
   const [cliente, setCliente] = useState('');
-  const [cono, setCono] = useState(0);
-  const [tableta, setTableta] = useState(0);
-  const [dulce, setDulce] = useState(0);
+  const [cantidades, setCantidades] = useState<Record<ProductKey, number>>({
+    cono: 0, tableta: 0, dulce: 0
+  });
   const [loading, setLoading] = useState(false);
+
+  const totalUSD =
+    cantidades.cono * PRECIOS_PRODUCTOS.cono +
+    cantidades.tableta * PRECIOS_PRODUCTOS.tableta +
+    cantidades.dulce * PRECIOS_PRODUCTOS.dulce;
+
+  const handleCantidad = (key: ProductKey, delta: number) => {
+    setCantidades(prev => ({ ...prev, [key]: Math.max(0, prev[key] + delta) }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cliente.trim()) return alert('Ingresa el nombre del cliente.');
+    if (totalUSD === 0) return alert('Agrega al menos un producto.');
     setLoading(true);
-
     try {
-      const rateDocRef = doc(db, 'config', 'tasas');
-      const rateDocSnap = await getDoc(rateDocRef);
-
-      let tasaActual = 0;
-      if (rateDocSnap.exists()) {
-        tasaActual = rateDocSnap.data().bcv;
-      } else {
-        alert("Atención: No se encontró una tasa BCV configurada. El registro se hará con tasa 0.");
-      }
-
-      const totalUSD = (cono * PRECIOS_PRODUCTOS.cono) +
-                       (tableta * PRECIOS_PRODUCTOS.tableta) +
-                       (dulce * PRECIOS_PRODUCTOS.dulce);
-
-      const totalBS = totalUSD * tasaActual;
-
+      // ✅ NO guardamos tasaBCVSnapshot ni totalBS aquí.
+      // El totalBS se calculará en tiempo real con la tasa vigente
+      // y solo se congelará cuando se marque como Pagado.
       await addDoc(collection(db, 'ventas'), {
-        cliente,
-        cacaoCono: cono,
-        cacaoTableta: tableta,
-        cacaoDulce: dulce,
+        cliente: cliente.trim(),
+        cacaoCono: cantidades.cono,
+        cacaoTableta: cantidades.tableta,
+        cacaoDulce: cantidades.dulce,
         fecha: new Date(),
         estado: 'Pendiente',
-        tasaBCVSnapshot: tasaActual,
         precioConoSnapshot: PRECIOS_PRODUCTOS.cono,
         precioTabletaSnapshot: PRECIOS_PRODUCTOS.tableta,
         precioDulceSnapshot: PRECIOS_PRODUCTOS.dulce,
-        totalUSD: totalUSD,
-        totalBS: totalBS
+        totalUSD,
+        // totalBS y tasaBCVSnapshot se guardarán al momento del pago
       });
 
       setCliente('');
-      setCono(0);
-      setTableta(0);
-      setDulce(0);
-      alert('Venta registrada con éxito!');
-
+      setCantidades({ cono: 0, tableta: 0, dulce: 0 });
+      alert('¡Venta registrada con éxito!');
     } catch (error) {
-      console.error("Error al añadir documento: ", error);
+      console.error(error);
       alert('Error al registrar la venta.');
     } finally {
       setLoading(false);
@@ -67,73 +64,98 @@ const VentaForm: React.FC = () => {
   };
 
   return (
-    <div className="p-6 border rounded-xl shadow-lg" style={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0' }}>
-      <h3 className="text-xl font-bold mb-5 flex items-center gap-2" style={{ color: '#1e293b' }}>
-        <span>➕</span> Registrar Nueva Venta
-      </h3>
+    <div
+      className="rounded-2xl shadow-lg overflow-hidden"
+      style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}
+    >
+      {/* Cabecera */}
+      <div className="px-5 py-4" style={{ backgroundColor: '#4f46e5' }}>
+        <h3 className="text-lg font-bold text-white">➕ Nueva Venta</h3>
+        <p className="text-xs text-indigo-200 mt-0.5">Completa los datos del cliente</p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        {/* NOMBRE DEL CLIENTE */}
-        <div className="mb-5">
-          <label className="block text-sm font-semibold mb-1" style={{ color: '#475569' }}>
+      <form onSubmit={handleSubmit} className="p-5 space-y-5">
+        {/* Nombre */}
+        <div>
+          <label className="block text-xs font-bold uppercase mb-1.5" style={{ color: '#475569' }}>
             Nombre del Cliente
           </label>
           <input
             type="text"
             placeholder="Ej: Trino Carrisales"
             value={cliente}
-            onChange={(e) => setCliente(e.target.value)}
+            onChange={e => setCliente(e.target.value)}
             required
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+            className="w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
             style={{ color: '#1e293b', backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }}
           />
         </div>
 
-        {/* CANTIDADES */}
-        <div className="space-y-3">
-          <p className="font-semibold pb-1 border-b" style={{ color: '#334155', borderColor: '#e2e8f0' }}>
-            Cantidades vendidas:
-          </p>
-
-          {[
-            { label: 'Cacao Cono', price: '1.90', value: cono, setter: setCono },
-            { label: 'Cacao Tableta', price: '1.50', value: tableta, setter: setTableta },
-            { label: 'Cacao Dulce', price: '1.00', value: dulce, setter: setDulce },
-          ].map(({ label, price, value, setter }) => (
-            <div key={label} className="flex items-center justify-between">
-              <label className="text-sm font-medium" style={{ color: '#475569' }}>
-                {label} <span style={{ color: '#6366f1' }}>(${price})</span>:
-              </label>
-              <input
-                type="number"
-                value={value}
-                min="0"
-                onChange={(e) => setter(Number(e.target.value))}
-                className="p-1 border rounded-lg w-20 text-center focus:ring-2 focus:ring-indigo-400 outline-none"
-                style={{ color: '#1e293b', backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }}
-              />
-            </div>
-          ))}
+        {/* Cantidades con +/- */}
+        <div>
+          <label className="block text-xs font-bold uppercase mb-3" style={{ color: '#475569' }}>
+            Cantidades
+          </label>
+          <div className="space-y-3">
+            {PRODUCTOS.map(({ key, label, price, color }) => (
+              <div
+                key={key}
+                className="flex items-center justify-between px-4 py-3 rounded-xl"
+                style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
+              >
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>{label}</p>
+                  <p className="text-xs font-bold" style={{ color }}>${price}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleCantidad(key, -1)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-lg transition-all active:scale-95"
+                    style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none' }}
+                  >−</button>
+                  <span className="w-8 text-center text-base font-black" style={{ color: '#1e293b' }}>
+                    {cantidades[key]}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCantidad(key, 1)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-lg transition-all active:scale-95"
+                    style={{ backgroundColor: '#dcfce7', color: '#16a34a', border: 'none' }}
+                  >+</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* TOTAL PREVIEW */}
-        <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: '#f0f9ff', borderLeft: '3px solid #6366f1' }}>
-          <p className="text-sm font-semibold" style={{ color: '#1e40af' }}>
-            Total estimado: $
-            {((cono * PRECIOS_PRODUCTOS.cono) + (tableta * PRECIOS_PRODUCTOS.tableta) + (dulce * PRECIOS_PRODUCTOS.dulce)).toFixed(2)}
-          </p>
+        {/* Total preview */}
+        <div
+          className="flex items-center justify-between px-4 py-3 rounded-xl"
+          style={{ backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}
+        >
+          <div>
+            <span className="text-sm font-bold" style={{ color: '#3730a3' }}>Total en USD</span>
+            <p className="text-[10px] mt-0.5" style={{ color: '#6366f1' }}>
+              El monto en Bs. se calculará con la tasa vigente al momento del pago
+            </p>
+          </div>
+          <span className="text-xl font-black" style={{ color: '#4f46e5' }}>
+            ${totalUSD.toFixed(2)}
+          </span>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-5 p-3 rounded-lg font-bold text-white transition-all"
+          className="w-full py-4 rounded-xl font-bold text-white text-base transition-all active:scale-[0.98]"
           style={{
             backgroundColor: loading ? '#94a3b8' : '#4f46e5',
-            cursor: loading ? 'not-allowed' : 'pointer'
+            border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
-          {loading ? 'Procesando...' : 'Finalizar Registro'}
+          {loading ? '⏳ Procesando...' : 'Finalizar Registro'}
         </button>
       </form>
     </div>
