@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, query, doc } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
-import type { Venta } from '../types/Venta';
+//import type { Venta } from '../types/Venta';
 
 interface Metrics {
   totalVentas: number;
